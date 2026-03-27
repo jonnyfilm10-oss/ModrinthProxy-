@@ -1,0 +1,16 @@
+{
+  "name": "modrinth-proxy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.64.0",
+    "pg": "^8.11.3",
+    "uuid": "^9.0.1"
+  }
+}
