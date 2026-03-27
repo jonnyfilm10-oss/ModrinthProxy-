@@ -21,15 +21,21 @@ async function main() {
   await init();
   console.log('[db] Ready');
 
-  // HTTP сервер — подписки + HTTP прокси
   const server = http.createServer();
   registerSubRoutes(server);
   startProxy(server);
 
-  const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => console.log(`[server] Listening on ${PORT}`));
+  const SOCKS_PORT = parseInt(process.env.SOCKS_PORT || '1080', 10);
+  const PORT = parseInt(process.env.HTTP_PORT || process.env.PORT || '3000', 10);
 
-  // SOCKS5 сервер — для Happ
+  if (PORT === SOCKS_PORT) {
+    console.error(`[startup] PORT conflict: HTTP and SOCKS5 both on ${PORT}. Set HTTP_PORT to a different value.`);
+    process.exit(1);
+  }
+
+  server.listen(PORT, () => console.log(`[http] Listening on ${PORT}`));
+
+  // SOCKS5 — на SOCKS_PORT (Railway TCP Proxy: 28566 -> SOCKS_PORT)
   startSocks5Server();
 
   startBot();
