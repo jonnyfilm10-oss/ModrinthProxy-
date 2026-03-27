@@ -1,6 +1,6 @@
 const http = require('http');
 const { init }               = require('./db');
-const { startProxy }         = require('./proxy');
+const { startProxy, startSocks5Server } = require('./proxy');
 const { registerSubRoutes }  = require('./subscription');
 const { startBot }           = require('./bot');
 
@@ -9,7 +9,6 @@ function checkEnv() {
     console.error('[startup] Missing BOT_TOKEN');
     process.exit(1);
   }
-  // DATABASE_URL и RAILWAY_PUBLIC_DOMAIN Railway подставляет сам
   if (!process.env.DATABASE_URL) {
     console.error('[startup] Missing DATABASE_URL — добавь PostgreSQL сервис в Railway');
     process.exit(1);
@@ -22,16 +21,16 @@ async function main() {
   await init();
   console.log('[db] Ready');
 
-  // Один HTTP сервер на один PORT
-  // — subscription.js отвечает на GET /<key>
-  // — proxy.js обрабатывает CONNECT и http:// запросы
+  // HTTP сервер — подписки + HTTP прокси
   const server = http.createServer();
-
   registerSubRoutes(server);
   startProxy(server);
 
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => console.log(`[server] Listening on ${PORT}`));
+
+  // SOCKS5 сервер — для Happ
+  startSocks5Server();
 
   startBot();
 }

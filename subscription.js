@@ -1,36 +1,31 @@
 const { subKeyExists } = require('./db');
 
-// Happ и другие клиенты (Clash, v2rayNG) принимают подписку:
-// base64( строки с прокси-конфигами, разделённые \n )
+// Happ поддерживает протоколы: VLESS, VMess, Trojan, Shadowsocks, Socks5
+// Формат Socks5 ссылки:
+//   socks://BASE64(user:password)@host:port#name
 //
-// Для HTTP-прокси с авторизацией формат строки:
-//   http://user:PASSWORD@HOST:PORT#Название
-//
-// Happ читает это и настраивает прокси автоматически.
+// password = subKey (используется как пароль SOCKS5)
 
 function getHost() {
-  return process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PROXY_HOST || 'localhost:3000';
+  return process.env.RAILWAY_PUBLIC_DOMAIN || process.env.PROXY_HOST || 'localhost';
 }
 
 function buildSubscription(subKey) {
-  const host = getHost();
-  const port = process.env.PROXY_PORT || '80';
-  const name = encodeURIComponent('Modrinth Proxy 🚀');
+  const host      = getHost();
+  const port      = process.env.PROXY_PORT || process.env.SOCKS_PORT || '1080';
+  const name      = encodeURIComponent('Modrinth Proxy 🚀');
 
-  // HTTP прокси — основной
-  const httpLine  = `http://user:${subKey}@${host}:${port}#${name}`;
+  // Socks5: credentials = base64(user:subKey)
+  const credentials = Buffer.from(`user:${subKey}`).toString('base64');
+  const socksLine   = `socks://${credentials}@${host}:${port}#${name}`;
 
-  const raw = [httpLine].join('\n');
-  return Buffer.from(raw).toString('base64');
+  return Buffer.from(socksLine).toString('base64');
 }
 
 function registerSubRoutes(server) {
-  const origListeners = server.listeners('request').slice();
-
   server.on('request', async (req, res) => {
-    // Роут подписки: GET /<subKey>
     const match = req.url.match(/^\/([a-f0-9]{32})$/i);
-    if (!match) return; // не наш роут — пусть proxy.js обрабатывает
+    if (!match) return;
 
     const subKey = match[1];
 
@@ -43,12 +38,11 @@ function registerSubRoutes(server) {
     const b64 = buildSubscription(subKey);
 
     res.writeHead(200, {
-      'Content-Type':        'text/plain; charset=utf-8',
-      'Content-Disposition': 'inline; filename="sub.txt"',
-      // Заголовки которые читает Happ/Clash
-      'profile-title':       Buffer.from('Modrinth Proxy').toString('base64'),
-      'profile-update-interval': '24',
-      'subscription-userinfo': 'upload=0; download=0; total=0; expire=0',
+      'Content-Type':              'text/plain; charset=utf-8',
+      'Content-Disposition':       'inline; filename="sub.txt"',
+      'profile-title':             Buffer.from('Modrinth Proxy').toString('base64'),
+      'profile-update-interval':   '24',
+      'subscription-userinfo':     'upload=0; download=0; total=0; expire=0',
     });
     res.end(b64);
   });
