@@ -15,11 +15,9 @@ function buildSubscription(subKey) {
   const port      = process.env.PROXY_PORT || process.env.SOCKS_PORT || '1080';
   const name      = encodeURIComponent('Modrinth Proxy 🚀');
 
-  // Socks5: credentials = base64(user:subKey)
+  // Socks5 partial base64: socks://BASE64(user:pass)@host:port#name
   const credentials = Buffer.from(`user:${subKey}`).toString('base64');
-  const socksLine   = `socks://${credentials}@${host}:${port}#${name}`;
-
-  return Buffer.from(socksLine).toString('base64');
+  return `socks://${credentials}@${host}:${port}#${name}`;
 }
 
 function registerSubRoutes(server) {
@@ -35,7 +33,7 @@ function registerSubRoutes(server) {
       return res.end('Not found');
     }
 
-    const b64 = buildSubscription(subKey);
+    const line = buildSubscription(subKey);
 
     res.writeHead(200, {
       'Content-Type':              'text/plain; charset=utf-8',
@@ -44,7 +42,7 @@ function registerSubRoutes(server) {
       'profile-update-interval':   '24',
       'subscription-userinfo':     'upload=0; download=0; total=0; expire=0',
     });
-    res.end(b64);
+    res.end(line);
   });
 }
 
